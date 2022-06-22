@@ -1,0 +1,1155 @@
+---
+title: "2009 data expo project 2022"
+author: '190527129'
+date: "3/23/2022"
+output: html_document
+---
+
+# Set Working Directory
+```{r}
+setwd("C:/Users/limzy/Documents/R/dataverse_files")
+```
+#Question 1
+
+# Read in the data for 2007
+
+```{r}
+Y2007 <- read.csv("2007.csv")
+
+str(Y2007)
+
+summary(Y2007)
+
+library(tidyverse)
+library(lubridate)
+```
+
+# Convert the Y2007 dates to year/month/date format 
+
+```{r}
+datesof2007 <- Y2007 %>% select(Year, Month,DayofMonth)
+datesof2007 <- mutate(datesof2007,Dates=paste(Year,Month,DayofMonth,sep="/"))
+datesof2007 = subset(datesof2007, select = -c(Year, Month, DayofMonth))
+datesof2007 = ymd(datesof2007$Dates)
+```
+
+# Adding Y2007 dates & day of the week to flight.timing df
+
+```{r}
+flight.timingsof2007 <- Y2007 %>% select(ArrDelay)
+flight.timingsof2007$datesof2007 <- datesof2007
+weekday <- weekdays(datesof2007)
+flight.timingsof2007$weekday <- weekday
+```
+
+# Reduce the size of the data by finding the mean of the delays per week
+
+```{r}
+weeksof2007 <- strftime( datesof2007, format = "%V")    # Converts the time to character objects
+weeksof2007 <- as.numeric(weeksof2007)
+flight.timingsof2007 <- cbind(flight.timingsof2007, weeksof2007)
+```
+
+# Preparation of data for loop function to find the mean delay of the 52 weeks
+
+```{r}
+WeeklyArrDelayMean <- vector(mode = "integer", length = length(1:52)) # Empty vector to store values for loop
+```
+
+# Loop for mean delay of the 52 weeks
+
+```{r}
+for (i in 1:52) {
+  WeekArrDelayMeandata <- flight.timingsof2007 %>% filter(weeksof2007 == i)
+  
+  WeeklyArrDelayMean[i] <- mean(WeekArrDelayMeandata$ArrDelay, na.rm = TRUE)
+  
+} 
+```
+
+# Preparing necessary vectors for plot
+
+```{r}
+Numofweeks <- 1:52 # Generating number of weeks vector
+
+weeklyMeanDelaysof2007 <- cbind(WeeklyArrDelayMean, Numofweeks )
+
+weeklyMeanDelaysof2007 <- as.data.frame(weeklyMeanDelaysof2007)
+```
+
+# Plotting for mean delay of the 52 weeks
+
+```{r}
+w <- ggplot(weeklyMeanDelaysof2007,
+            aes(x = Numofweeks,
+                y = WeeklyArrDelayMean)
+                         )
+```
+
+# Line plot
+
+```{r}
+w <- w + 
+  geom_line()
+```
+
+# Plot Labels and plot the graph
+
+```{r}
+w <- w + 
+  labs(
+    title = "Weekly Delays for 2007",
+    x = "Number of weeks",
+    y = "Mean of Weekly Delay"
+  )
+
+w
+
+```
+
+# Preparation of data for loop function to find daily mean delays
+
+# Generating data frame
+
+```{r}
+days <- yday(datesof2007) - 1 # Generating numbered days of the year from dates
+
+days_of_delay <- Y2007 %>% select(ArrDelay) %>% cbind(days) 
+
+dailyArrDelayMean <- vector(mode = "integer", length = length(0:364)) # Empty vector to store values for loop
+```
+
+# Loop for daily mean of delays
+
+```{r}
+for (i in 0:364) {
+  dailyArrDelayMeandata <- days_of_delay %>% filter(days == i)
+  
+  dailyArrDelayMean[i] <- mean(dailyArrDelayMeandata$ArrDelay, na.rm = TRUE) 
+  
+} 
+```
+
+# Preparing necessary vectors for plot
+
+```{r}
+ymd_of_2007 <- seq(as.Date("2007-01-01"),as.Date("2007-12-31"),by="1 day") # Generating Year 2007 dates
+
+day_of_the_week <- wday(ymd_of_2007, label = TRUE) # Days
+
+months_of_2007 <- month(ymd_of_2007, label = TRUE) # Months
+```
+
+# Combining vectors into data frame without compromising class
+
+```{r}
+dailyArrDelayMean <- data.frame(dailyArrDelayMean = dailyArrDelayMean,
+                                ymd_of_2007 = ymd_of_2007,
+                                months_of_2007 = months_of_2007,
+                                day_of_the_week = day_of_the_week)
+
+```
+
+# Plotting daily mean delays 2007
+
+```{r}
+p <- ggplot(data = dailyArrDelayMean,
+            mapping = aes(x =months_of_2007,
+                          y =day_of_the_week,
+                          fill =dailyArrDelayMean))
+```
+
+# heatmap
+
+```{r}
+p <- p + 
+  geom_tile()
+```
+
+# Colours for heatmap   
+
+```{r}
+p <- p + 
+  scale_fill_distiller(limits = c(-40, 40),
+                       palette = 'RdBu')
+```
+
+# Labels for heatmap and plot
+
+```{r}
+p <- p +
+  labs(
+    title = "Daily Delays for 2007",
+    fill = "Intensity of \n mean delays",
+    x = "Month",
+    y = "Day"
+  )
+
+p
+```
+
+# Best time of the day
+# Lowest mean delays from heat map is
+# October - Monday
+
+```{r}
+CRSDepTime2007 <- Y2007$CRSDepTime
+Month_2007 <- Y2007$Month
+Delays_2007 <- Y2007$ArrDelay
+
+
+Scheduled_DepTiming2007 <- data.frame(CRSDepTime2007 = CRSDepTime2007,
+                                      Delays_2007 = Delays_2007,
+                                      Month_2007 = Month_2007,
+                                      weekday = weekday)
+``` 
+
+# Filter flights on October Mondays out
+
+```{r}
+OctMonScheduled_DepTiming2007 <- filter(Scheduled_DepTiming2007, Month_2007 == 10)
+
+OctMonScheduled_DepTiming2007 <- filter(OctMonScheduled_DepTiming2007, weekday == "Monday")
+
+```
+
+# Scatter plot
+
+```{r}
+q <- ggplot(OctMonScheduled_DepTiming2007,
+            aes(x = CRSDepTime2007,
+                y = Delays_2007)
+)
+q <- q + 
+  geom_point()
+```
+
+# Labels for scatter plot
+
+```{r}
+q <- q +
+  labs(
+    title = "October, Monday departures for 2007",
+    x = "Time (Hrs)",
+    y = "Delays (in Mins)"
+  )
+```
+
+# Scale for plot and plot
+
+```{r}
+q <- q + 
+  scale_x_continuous(limits = c(0,2400), breaks = 200*(0:12)) +
+  scale_y_continuous(limits = c(-80,200), breaks = 20*(-10:10))
+
+q
+```
+
+############
+# Question 2
+
+# Read in data
+
+```{r}
+planedata <- read.csv("plane-data.csv")
+
+planedelays <- Y2007 %>% select(TailNum, ArrDelay)
+```
+
+# Remove rows with NA values in specific column
+
+```{r}
+planedelays <- planedelays %>% filter_at(vars(ArrDelay), all_vars(!is.na(.)))
+```
+
+# Group by tail number and find the mean of the delays for each tail number
+
+```{r}
+mean_plane_delays <- planedelays %>% group_by(TailNum) %>% summarise(mean_delays = mean(ArrDelay))
+```
+
+# Merging 2 data frames together by their tail number
+
+```{r}
+merged_tailnum_delays <- merge(mean_plane_delays, planedata, by.x = "TailNum", by.y = "tailnum")                                                                 
+
+merged_tailnum_delays <- merged_tailnum_delays %>% select(TailNum, mean_delays, year)
+```
+
+# Plotting daily mean delays 2007
+
+```{r}
+r <- ggplot(data = merged_tailnum_delays,
+            mapping = aes(x =mean_delays,
+                          y =year
+                          ))
+```
+
+# Scatter plot
+
+```{r}
+r <- r + 
+  geom_point()
+```
+
+# Labels for scatter plot
+
+```{r}
+r <- r +
+  labs(
+    title = "2007 Delays of against age of aircrafts",
+    x = "Mean delays (mins)",
+    y = "Year of aircraft issued"
+  )
+```
+
+# Scale for plot and plot
+
+```{r}
+r <- r + 
+  scale_y_discrete(limits = factor(1956:2007), breaks = 2*(978:1004)) +
+  scale_x_continuous(limits = c(-50,100), breaks = 10*(-5:100))
+
+
+r
+```
+
+# old planes < 1996
+
+```{r}
+OLDmerged_tailnum_delays <- merged_tailnum_delays %>% filter(year < 1996)
+
+OLDmerged_tailnum_delays %>% summarise(mean_delays = mean(mean_delays)) #12.93
+```
+
+#new planes =>1996
+
+```{r}
+NEWmerged_tailnum_delays <- merged_tailnum_delays %>% filter(year > 1995)
+
+NEWmerged_tailnum_delays %>% summarise(mean_delays = mean(mean_delays)) #10.71
+```
+
+############
+
+# Question 3
+
+```{r}
+airportdata <- read.csv("airports.csv")
+
+location_of_flights <- Y2007 %>% select(Origin, Dest, FlightNum, UniqueCarrier)
+
+location_of_flights <- merge(airportdata, location_of_flights, by.x = 'iata', by.y = 'Origin')
+```
+
+# Number of flights per airport origin
+
+```{r}
+Num_of_flights_per_airport <- location_of_flights %>%
+  group_by(airport) %>%
+  summarize(num_flights = n()) 
+```
+
+# Merge data frames
+
+```{r}
+Num_of_flights_per_airport <- merge(Num_of_flights_per_airport, airportdata, by.x = 'airport', by.y = 'airport')
+```
+
+# Map of USA and her States borders
+
+```{r}
+s <- map_data("state")
+ggplot(s, aes(x = long, y= lat, group = group, fill = region)) +
+  geom_polygon(colour = 'black') +
+  coord_map('polyconic') +
+  guides(fill = FALSE)
+
+Num_of_flights_per_airport$state <- state.name[match(Num_of_flights_per_airport$state,state.abb)]
+```
+
+# Making 'state' to all lower case so it can be merged
+
+```{r}
+Num_of_flights_per_airport$state <- tolower(Num_of_flights_per_airport$state)
+```
+
+# Merge data frames
+
+```{r}
+flights_per_airport_data <- merge(s, Num_of_flights_per_airport,
+                                  by.x = 'region',
+                                  by.y = 'state')
+```
+
+# Geographic plot and plot
+
+```{r}
+map1 <- ggplot(data = flights_per_airport_data, aes( x = long.x, y = lat.x,
+                                                     group = group,
+                                                     fill = num_flights)) +
+  geom_polygon(colour = 'black') +
+  coord_map('polyconic') +
+  scale_fill_gradient(low = 'white', high = 'red') +
+  theme_void() +
+  ggtitle('Number of flights per state 2007') +
+  theme(legend.position = "none")
+  
+map1
+```
+
+############
+# Question 4
+
+```{r}
+cascading_data <- Y2007 %>% select(TailNum, DepTime, ArrTime, Origin, Dest, ArrDelay, DepDelay)
+cascading_data$datesof2007 <- datesof2007
+```
+
+# Remove rows with NA values in specific column
+
+```{r}
+cascading_data <- cascading_data %>% filter_at(vars(ArrDelay, DepDelay), all_vars(!is.na(.)))
+
+```
+# Finding the highest minutes of delay for plane
+
+```{r}
+highest_flight_delay <- cascading_data %>% select(TailNum, ArrDelay)
+highest_flight_delay <- aggregate(highest_flight_delay$ArrDelay, list(highest_flight_delay$TailNum), sum)
+```
+
+# N631AS plane with highest minutes of delay
+# Generating departure and arrival status
+
+```{r}
+Depstatus <- cascading_data %>% select(DepDelay)
+
+Depstatus$depstatus <- as.factor(ifelse(Depstatus$DepDelay < 0, 'Early Departure',
+                                        ifelse(Depstatus$DepDelay == 0, 'On Time', 
+                                               ifelse(Depstatus$DepDelay > 0, 'Late Departure',
+                                                      'nil'))))
+
+Arrstatus <- cascading_data %>% select(ArrDelay)
+
+Arrstatus$arrstatus <- as.factor(ifelse(Arrstatus$ArrDelay < 0, 'Early Arrival',
+                                        ifelse(Arrstatus$ArrDelay == 0, 'On Time', 
+                                               ifelse(Arrstatus$ArrDelay > 0, 'Late Arrival',
+                                                      'nil'))))
+
+cascading_data = subset(cascading_data, select = -c(ArrDelay, DepDelay) )
+
+cascading_data["DepStatus"] <- Depstatus$depstatus
+
+cascading_data["ArrStatus"] <- Arrstatus$arrstatus
+
+```
+
+# Filtering N631AS out from data frame
+
+```{r}
+N631ASflight <- cascading_data[cascading_data$TailNum == "N631AS",]
+N631ASflight <- N631ASflight[N631ASflight$datesof2007 == "2007-01-02",] # selecting a day to focus on
+
+print(N631ASflight)
+```
+############
+# Question 5
+# Model that predicts delays for specified day of the year
+# Random forest
+
+```{r}
+library(randomForest)
+library(caret)
+```
+
+# Select relevant variables from dataframe
+
+```{r}
+rfdata <- Y2007 %>% select(Month, DayofMonth, CRSDepTime,
+                       CRSArrTime, DepDelay, ArrDelay, Origin,
+                       Dest, Distance, CRSElapsedTime, ActualElapsedTime, TaxiIn, TaxiOut, AirTime,
+                       Diverted, CarrierDelay, WeatherDelay, NASDelay, SecurityDelay, LateAircraftDelay)
+```
+
+# Remove NA values
+
+```{r}
+rfdata <- na.omit(rfdata)
+```
+
+# Delayed when > 0
+
+```{r}
+Delayed = ifelse(rfdata$ArrDelay > 0, "Yes", "No")
+
+rfdata <- subset(rfdata, select = c(-ArrDelay))
+
+rfdata <- data.frame(rfdata, Delayed)
+
+rfdata$Delayed <- as.factor(rfdata$Delayed)
+```
+
+# Choosing Jan 1st as my Random Forest data
+
+```{r}
+rfdata <- filter(rfdata, Month == 1 & DayofMonth == 1)
+```
+
+# Data Partition, train/test set
+
+```{r}
+set.seed(145)
+
+indpt_sample <- sample(2, nrow(rfdata), replace = TRUE, prob = c(0.7, 0.3))
+
+train <- rfdata[indpt_sample == 1,]
+test <- rfdata[indpt_sample == 2,]
+```
+
+# Random Forest
+
+```{r}
+set.seed(220)
+
+rf <- randomForest(Delayed~., data = train)
+
+rf
+```
+# OOB error = 12.53%
+
+# Prediction and Confusion Matrix (train data)
+
+```{r}
+p1 <- predict(rf, train)
+
+confusionMatrix(p1,  train$Delayed)#Accuracy : 0.999, 95% CI : (0.9996, 1)
+                                   #Sensitivity : 1.0000
+
+```
+
+# Prediction and Confusion Matrix (test data)
+
+```{r}
+p2 <- predict(rf, test)
+
+confusionMatrix(p2,  test$Delayed)#Accuracy : 0.876, 95% CI : (0.8672, 0.8844)
+                                  #Sensitivity : 0.8959
+```
+
+# Error rate of Random Forest
+
+```{r}
+plot(rf) #200 trees
+```
+
+# Tune mtry
+
+```{r}
+t <- tuneRF(train[,-20], train[,20],
+       stepFactor = 0.5,
+       plot = TRUE,
+       ntreetry = 200,
+       trace = TRUE,
+       improve = 0.05) # mtry value = 8
+```
+
+# Re-Run Tuned Random Forest
+
+```{r}
+rf <- randomForest(Delayed~., data = train,
+                   ntree = 200,
+                   mtry = 8,
+                   importance = TRUE,
+                   proximity = TRUE)
+
+rf
+```
+
+# OOB error = 11.26% (IMPROVED)
+
+# Number of nodes for trees
+
+```{r}
+hist(treesize(rf),
+     main = "No. of Nodes for the Trees 2007",
+     col = "green")                       # Distribution of nodes from 900 - 1250
+                                          # Majority of the trees have an average of 80 nodes
+```
+
+# Variable Importance
+
+```{r}
+varImpPlot(rf,
+           sort = T,
+           n.var = 10,
+           main = "Top 10 - Variable Importance 2007")
+```
+
+                                      ###END for 2007###
+
+rm(list = ls(all.names = TRUE))       ##################
+ 
+                                      ##START of 2006###
+
+# Read in the data for 2006
+
+```{r}
+Y2006 <- read.csv("2006.csv")
+
+str(Y2006)
+
+summary(Y2006)
+```
+
+# Convert the Y2006 dates to year/month/date format 
+
+```{r}
+datesof2006 <- Y2006 %>% select(Year, Month,DayofMonth)
+datesof2006 <- mutate(datesof2006,Dates=paste(Year,Month,DayofMonth,sep="/"))
+datesof2006 = subset(datesof2006, select = -c(Year, Month, DayofMonth))
+datesof2006 = ymd(datesof2006$Dates)
+```
+
+# Adding Y2006 dates & day of the week to flight.timing df
+
+```{r}
+flight.timingsof2006 <- Y2006 %>% select(ArrDelay)
+flight.timingsof2006$datesof2006 <- datesof2006
+weekday <- weekdays(datesof2006)
+flight.timingsof2006$weekday <- weekday
+```
+
+# Reduce the size of the data by finding the mean of the delays per week
+
+```{r}
+weeksof2006 <- strftime( datesof2006, format = "%V")    # Converts the time to character objects
+weeksof2006 <- as.numeric(weeksof2006)
+flight.timingsof2006 <- cbind(flight.timingsof2006, weeksof2006)
+```
+
+# Preparation of data for loop function to find the mean delay of the 52 weeks
+
+```{r}
+WeeklyArrDelayMean <- vector(mode = "integer", length = length(1:52)) # Empty vector to store values for loop
+```
+
+# Loop for mean delay of the 52 weeks
+
+```{r}
+for (i in 1:52) {
+  WeekArrDelayMeandata <- flight.timingsof2006 %>% filter(weeksof2006 == i)
+  
+  WeeklyArrDelayMean[i] <- mean(WeekArrDelayMeandata$ArrDelay, na.rm = TRUE)
+  
+} 
+```
+
+# Preparing necessary vectors for plot
+
+```{r}
+Numofweeks <- 1:52 # Generating number of weeks vector
+
+weeklyMeanDelaysof2006 <- cbind(WeeklyArrDelayMean, Numofweeks )
+
+weeklyMeanDelaysof2006 <- as.data.frame(weeklyMeanDelaysof2006)
+```
+
+# Plotting for mean delay of the 52 weeks
+
+```{r}
+w <- ggplot(weeklyMeanDelaysof2006,
+            aes(x = Numofweeks,
+                y = WeeklyArrDelayMean)
+)
+```
+
+# Line plot
+
+```{r}
+w <- w + 
+  geom_line()
+```
+
+# Plot Labels and plot
+
+```{r}
+w <- w + 
+  labs(
+    title = "Weekly Delays for 2006",
+    x = "Number of weeks",
+    y = "Mean of Weekly Delay"
+  )
+
+w
+```
+
+# Preparation of data for loop function to find daily mean delays
+
+# Generating data frame
+
+```{r}
+days <- yday(datesof2006) - 1 # Generating numbered days of the year from dates
+
+days_of_delay <- Y2006 %>% select(ArrDelay) %>% cbind(days) 
+
+dailyArrDelayMean <- vector(mode = "integer", length = length(0:364)) # Empty vector to store values for loop
+```
+
+# Loop for daily mean of delays
+
+```{r}
+for (i in 0:364) {
+  dailyArrDelayMeandata <- days_of_delay %>% filter(days == i)
+  
+  dailyArrDelayMean[i] <- mean(dailyArrDelayMeandata$ArrDelay, na.rm = TRUE) 
+  
+} # Loop for daily mean of delays
+```
+
+# Preparing necessary vectors for plot
+
+```{r}
+ymd_of_2006 <- seq(as.Date("2006-01-01"),as.Date("2006-12-31"),by="1 day") # Generating Year 2006 dates
+
+day_of_the_week <- wday(ymd_of_2006, label = TRUE) # Days
+
+months_of_2006 <- month(ymd_of_2006, label = TRUE) # Months
+```
+
+# Combining vectors into data frame without compromising class
+
+```{r}
+dailyArrDelayMean <- data.frame(dailyArrDelayMean = dailyArrDelayMean,
+                                ymd_of_2006 = ymd_of_2006,
+                                months_of_2006 = months_of_2006,
+                                day_of_the_week = day_of_the_week)
+```
+
+
+# Plotting daily mean delays 2006
+
+```{r}
+p <- ggplot(data = dailyArrDelayMean,
+            mapping = aes(x =months_of_2006,
+                          y =day_of_the_week,
+                          fill =dailyArrDelayMean))
+```
+
+# heatmap
+
+```{r}
+p <- p + 
+  geom_tile()
+```
+
+# Colours for heatmap   
+
+```{r}
+p <- p + 
+  scale_fill_distiller(limits = c(-40, 40),
+                       palette = 'RdBu')
+```
+
+# Labels for heatmap and plot
+
+```{r}
+p <- p +
+  labs(
+    title = "Daily Delays for 2006",
+    fill = "Intensity of \n mean delays",
+    x = "Month",
+    y = "Day"
+  )
+
+p
+```
+
+# Best time of the day
+# Lowest mean delays from heat map is
+# January - Wednesday
+
+```{r}
+CRSDepTime2006 <- Y2006$CRSDepTime
+Month_2006 <- Y2006$Month
+Delays_2006 <- Y2006$ArrDelay
+
+Scheduled_DepTiming2006 <- data.frame(CRSDepTime2006 = CRSDepTime2006,
+                                      Delays_2006 = Delays_2006,
+                                      Month_2006 = Month_2006,
+                                      weekday = weekday)
+```
+
+# Filter flights on October Mondays out
+
+```{r}
+JanWedScheduled_DepTiming2006 <- filter(Scheduled_DepTiming2006, Month_2006 == 1)
+
+JanWedScheduled_DepTiming2006 <- filter(JanWedScheduled_DepTiming2006, weekday == "Wednesday")
+```
+
+# Scatter plot
+
+```{r}
+q <- ggplot(JanWedScheduled_DepTiming2006,
+            aes(x = CRSDepTime2006,
+                y = Delays_2006)
+)
+q <- q + 
+  geom_point()
+```
+
+# Labels for scatter plot
+
+```{r}
+q <- q +
+  labs(
+    title = "January, Wednesday departures for 2006",
+    x = "Time (Hrs)",
+    y = "Delays (in Mins)"
+  )
+```
+
+# Scale for plot and plot
+
+```{r}
+q <- q + 
+  scale_x_continuous(limits = c(0,2400), breaks = 200*(0:12)) +
+  scale_y_continuous(limits = c(-80,200), breaks = 20*(-10:10))
+
+q
+```
+
+############
+# Question 2
+
+# Read in data
+
+```{r}
+planedata <- read.csv("plane-data.csv")
+
+planedelays <- Y2006 %>% select(TailNum, ArrDelay)
+```
+
+# Remove rows with NA values in specific column
+
+```{r}
+planedelays <- planedelays %>% filter_at(vars(ArrDelay), all_vars(!is.na(.)))
+```
+
+# Group by tail number and find the mean of the delays for each tail number
+
+```{r}
+mean_plane_delays <- planedelays %>% group_by(TailNum) %>% summarise(mean_delays = mean(ArrDelay))
+```
+
+# Merging 2 data frames together by their tail number
+
+```{r}
+merged_tailnum_delays <- merge(mean_plane_delays, planedata, by.x = "TailNum", by.y = "tailnum")                                                                 
+
+merged_tailnum_delays <- merged_tailnum_delays %>% select(TailNum, mean_delays, year)
+
+```
+
+# Plotting daily mean delays 2006
+
+```{r}
+r <- ggplot(data = merged_tailnum_delays,
+            mapping = aes(x =mean_delays,
+                          y =year
+            ))
+```
+
+# Scatter plot
+
+```{r}
+r <- r + 
+  geom_point()
+```
+
+# Labels for scatter plot
+
+```{r}
+r <- r +
+  labs(
+    title = "2006 Delays of against age of aircrafts",
+    x = "Mean delays (mins)",
+    y = "Year of aircraft issued"
+  )
+```
+
+# Scale for plot and plot
+
+```{r}
+r <- r + 
+  scale_y_discrete(limits = factor(1956:2007), breaks = 2*(978:1004)) +
+  scale_x_continuous(limits = c(-50,100), breaks = 10*(-5:100))
+
+
+r
+```
+
+# old planes < 1995
+
+```{r}
+OLDmerged_tailnum_delays <- merged_tailnum_delays %>% filter(year < 1995)
+
+OLDmerged_tailnum_delays %>% summarise(mean_delays = mean(mean_delays)) #10.22
+```
+
+#new planes =>1995
+
+```{r}
+NEWmerged_tailnum_delays <- merged_tailnum_delays %>% filter(year > 1994)
+
+NEWmerged_tailnum_delays %>% summarise(mean_delays = mean(mean_delays)) #9.66
+```
+
+############
+# Question 3
+
+```{r}
+airportdata <- read.csv("airports.csv")
+
+location_of_flights <- Y2006 %>% select(Origin, Dest, FlightNum, UniqueCarrier)
+
+location_of_flights <- merge(airportdata, location_of_flights, by.x = 'iata', by.y = 'Origin')
+```
+
+# Number of flights per airport origin
+
+```{r}
+Num_of_flights_per_airport <- location_of_flights %>%
+  group_by(airport) %>%
+  summarize(num_flights = n()) 
+```
+
+# Merge data frames
+
+```{r}
+Num_of_flights_per_airport <- merge(Num_of_flights_per_airport, airportdata, by.x = 'airport', by.y = 'airport')
+```
+
+# Map of USA and her States borders
+
+```{r}
+s <- map_data("state")
+ggplot(s, aes(x = long, y= lat, group = group, fill = region)) +
+  geom_polygon(colour = 'black') +
+  coord_map('polyconic') +
+  guides(fill = FALSE)
+
+Num_of_flights_per_airport$state <- state.name[match(Num_of_flights_per_airport$state,state.abb)]
+```
+
+# Making 'state' to all lower case so it can be merged
+
+```{r}
+Num_of_flights_per_airport$state <- tolower(Num_of_flights_per_airport$state)
+```
+
+# Merge data frames
+
+```{r}
+flights_per_airport_data <- merge(s, Num_of_flights_per_airport,
+                                  by.x = 'region',
+                                  by.y = 'state')
+```
+
+# Geographic plot and plot
+
+```{r}
+map1 <- ggplot(data = flights_per_airport_data, aes( x = long.x, y = lat.x,
+                                                     group = group,
+                                                     fill = num_flights)) +
+  geom_polygon(colour = 'black') +
+  coord_map('polyconic') +
+  scale_fill_gradient(low = 'white', high = 'red') +
+  theme_void() +
+  ggtitle('Number of flights per state 2006') +
+  theme(legend.position = "none")
+
+map1
+```
+############
+# Question 4
+
+```{r}
+cascading_data <- Y2006 %>% select(TailNum, DepTime, ArrTime, Origin, Dest, ArrDelay, DepDelay)
+cascading_data$datesof2006 <- datesof2006
+```
+
+# Remove rows with NA values in specific column
+
+```{r}
+cascading_data <- cascading_data %>% filter_at(vars(ArrDelay, DepDelay), all_vars(!is.na(.)))
+```
+
+# Finding the highest minutes of delay for plane
+
+```{r}
+highest_flight_delay <- cascading_data %>% select(TailNum, ArrDelay)
+highest_flight_delay <- aggregate(highest_flight_delay$ArrDelay, list(highest_flight_delay$TailNum), sum)
+```
+
+# N17175 plane with highest minutes of delay
+# Generating departure and arrival status
+
+```{r}
+Depstatus <- cascading_data %>% select(DepDelay)
+
+Depstatus$depstatus <- as.factor(ifelse(Depstatus$DepDelay < 0, 'Early Departure',
+                                 ifelse(Depstatus$DepDelay == 0, 'On Time', 
+                                        ifelse(Depstatus$DepDelay > 0, 'Late Departure',
+                                               'nil'))))
+
+Arrstatus <- cascading_data %>% select(ArrDelay)
+
+Arrstatus$arrstatus <- as.factor(ifelse(Arrstatus$ArrDelay < 0, 'Early Arrival',
+                                        ifelse(Arrstatus$ArrDelay == 0, 'On Time', 
+                                               ifelse(Arrstatus$ArrDelay > 0, 'Late Arrival',
+                                                      'nil'))))
+
+cascading_data = subset(cascading_data, select = -c(ArrDelay, DepDelay) )
+
+cascading_data["DepStatus"] <- Depstatus$depstatus
+
+cascading_data["ArrStatus"] <- Arrstatus$arrstatus
+```
+
+# Filtering N17175 out from data frame
+
+```{r}
+N17175flight <- cascading_data[cascading_data$TailNum == "N17175",]
+N17175flight <- N17175flight[N17175flight$datesof2006 == "2006-01-02",] # selecting a day to focus on
+
+print(N17175flight)
+```
+############
+# Question 5
+# Model that predicts delays for specified day of the year
+# Random forest
+
+```{r}
+rfdata <- Y2006 %>% select(Month, DayofMonth, CRSDepTime,
+                           CRSArrTime, DepDelay, ArrDelay, Origin,
+                           Dest, Distance, CRSElapsedTime, ActualElapsedTime, TaxiIn, TaxiOut, AirTime,
+                           Diverted, CarrierDelay, WeatherDelay, NASDelay, SecurityDelay, LateAircraftDelay)
+```
+
+# Remove NA values
+
+```{r}
+rfdata <- na.omit(rfdata)
+```
+
+# Delayed when > 0
+
+```{r}
+Delayed = ifelse(rfdata$ArrDelay > 0, "Yes", "No")
+
+rfdata <- subset(rfdata, select = c(-ArrDelay))
+
+rfdata <- data.frame(rfdata, Delayed)
+
+rfdata$Delayed <- as.factor(rfdata$Delayed)
+```
+
+# Choosing Dec 31st as my Random Forest data
+
+```{r}
+rfdata <- filter(rfdata, Month == 12 & DayofMonth == 31)
+```
+
+# Data Partition, train/test set
+
+```{r}
+set.seed(145)
+
+indpt_sample <- sample(2, nrow(rfdata), replace = TRUE, prob = c(0.7, 0.3))
+
+train <- rfdata[indpt_sample == 1,]
+test <- rfdata[indpt_sample == 2,]
+```
+
+# Random Forest
+
+```{r}
+set.seed(220)
+
+rf <- randomForest(Delayed~., data = train)
+
+rf
+# OOB error = 11.23%
+```
+
+# Prediction and Confusion Matrix (train data)
+
+```{r}
+p1 <- predict(rf, train)
+
+confusionMatrix(p1,  train$Delayed)#Accuracy : 0.999, 95% CI : (0.9994, 1)
+#Sensitivity : 1.0000
+```
+
+# Prediction and Confusion Matrix (test data)
+
+```{r}
+p2 <- predict(rf, test)
+
+confusionMatrix(p2,  test$Delayed)#Accuracy : 0.883, 95% CI : (0.8737, 0.8916)
+#Sensitivity : 0.9200
+```
+
+# Error rate of Random Forest
+
+```{r}
+plot(rf) #200 trees
+```
+
+# Tune mtry
+
+```{r}
+t <- tuneRF(train[,-20], train[,20],
+            stepFactor = 0.5,
+            plot = TRUE,
+            ntreetry = 200,
+            trace = TRUE,
+            improve = 0.05) # mtry value = 8
+```
+
+# Re-Run Tuned Random Forest
+
+```{r}
+rf <- randomForest(Delayed~., data = train,
+                   ntree = 200,
+                   mtry = 8,
+                   importance = TRUE,
+                   proximity = TRUE)
+
+rf
+# OOB error = 10.14% (IMPROVED)
+```
+
+# Number of nodes for trees 
+
+```{r}
+hist(treesize(rf),
+     main = "No. of Nodes for the Trees 2006",
+     col = "green")                       # Distribution of nodes from 760 - 990
+                                          # Majority of the trees have an average of 45 nodes
+```
+
+# Variable Importance
+
+```{r}
+varImpPlot(rf,
+           sort = T,
+           n.var = 10,
+           main = "Top 10 - Variable Importance 2006")
+```
+
+###END for 2006###
+
+rm(list = ls(all.names = TRUE))
