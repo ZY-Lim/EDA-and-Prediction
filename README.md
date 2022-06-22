@@ -8,4 +8,4 @@ Making use of the dataset in year 2006 and 2007, I will be finding out;
 - detect cascading failures as delays in one airport creates delays in another
 - construction a model that predicts delays
 
-This will be done in both R and Python
+This will be done in both R (2006 and 2007) and Python (2004 and 2005)
